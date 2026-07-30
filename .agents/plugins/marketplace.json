@@ -1,0 +1,10 @@
+{
+  "name": "tikhub-xhs-marketplace",
+  "interface": {"displayName": "TikHub 小红书工具"},
+  "plugins": [{
+    "name": "tikhub-xhs-mcp",
+    "source": {"source": "local", "path": "./plugins/tikhub-xhs-mcp"},
+    "policy": {"installation": "AVAILABLE", "authentication": "ON_USE"},
+    "category": "Productivity"
+  }]
+}

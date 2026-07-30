@@ -1,0 +1,25 @@
+{
+  "name": "tikhub-xhs-mcp",
+  "version": "1.0.0",
+  "description": "通过 TikHub 查询小红书公开数据的只读 MCP 工具。",
+  "author": {"name": "suhdgh", "url": "https://github.com/suhdgh"},
+  "homepage": "https://github.com/suhdgh/tikhub-xhs-marketplace",
+  "repository": "https://github.com/suhdgh/tikhub-xhs-marketplace",
+  "license": "MIT",
+  "keywords": ["tikhub", "xiaohongshu", "xhs", "mcp", "data"],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "TikHub 小红书数据",
+    "shortDescription": "查询小红书笔记、用户、评论与热榜数据",
+    "longDescription": "使用你自己的 TikHub API Key 查询 TikHub 提供的小红书数据接口；所有查询均为只读，部分接口可能收费。",
+    "developerName": "suhdgh",
+    "category": "Productivity",
+    "capabilities": ["Read"],
+    "defaultPrompt": [
+      "调用 xhs_status 检查 TikHub 小红书 MCP 是否已配置。",
+      "搜索关键词护肤的小红书笔记。",
+      "列出可通过 xhs_call 调用的小红书接口。"
+    ],
+    "brandColor": "#FF2442"
+  }
+}

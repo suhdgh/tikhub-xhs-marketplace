@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tikhub_xhs": {
+      "command": "python",
+      "args": ["xhs_mcp_server.py"],
+      "cwd": "."
+    }
+  }
+}
