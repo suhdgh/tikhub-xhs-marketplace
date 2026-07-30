@@ -19,13 +19,14 @@ class XhsMcpServerTests(unittest.TestCase):
         with mock.patch.dict("os.environ", {"TIKHUB_API_KEY": "environment-test-key"}, clear=True):
             self.assertEqual(resolve_server_api_key(), "environment-test-key")
 
-        server = create_server(api_key=None, version="1.0.0")
+        with mock.patch.dict("os.environ", {}, clear=True):
+            server = create_server(api_key=None, version="1.0.0")
 
-        async def call_status():
-            async with Client(server) as client:
-                return await client.call_tool("xhs_status", {})
+            async def call_status():
+                async with Client(server) as client:
+                    return await client.call_tool("xhs_status", {})
 
-        result = asyncio.run(call_status())
+            result = asyncio.run(call_status())
         self.assertEqual(result.structured_content["status"], "configuration_required")
         self.assertNotIn("environment-test-key", str(result))
 
