@@ -241,6 +241,21 @@ $source = Get-Content -LiteralPath '{quoted_script}' -Raw
         self.assertIn("if ($LASTEXITCODE -ne 0)", windows)
         self.assertIn('throw "WinGet installation failed', windows)
         self.assertNotIn("exit 0", windows)
+        existing_uv_check = windows.index(
+            "if (Get-Command uv -ErrorAction SilentlyContinue) {"
+        )
+        winget_check = windows.index(
+            "if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {"
+        )
+        winget_install = windows.index("winget install --id astral-sh.uv -e")
+        installed_uv_check = windows.index(
+            "if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {"
+        )
+        self.assertLess(existing_uv_check, winget_check)
+        self.assertLess(winget_check, winget_install)
+        self.assertLess(winget_install, installed_uv_check)
+        self.assertIn("uv --version", windows[existing_uv_check:winget_check])
+        self.assertIn("uv --version", windows[installed_uv_check:])
         uv_missing_branch = windows.split(
             "if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {", maxsplit=1
         )[1]
