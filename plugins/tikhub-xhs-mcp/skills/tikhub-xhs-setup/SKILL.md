@@ -15,7 +15,7 @@ If the tools are missing, the server cannot start, or `uv` is unavailable, clear
 
 | System | Command |
 | --- | --- |
-| Windows | `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"` |
+| Windows | `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"` |
 | macOS / Linux | `curl -LsSf https://astral.sh/uv/install.sh | sh` |
 
 Do not run an installation command unless the user explicitly agrees. Do not ask the user to paste `TIKHUB_API_KEY`, and never include or handle a Key in commands, logs, or files.

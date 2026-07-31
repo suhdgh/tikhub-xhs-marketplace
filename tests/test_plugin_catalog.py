@@ -57,3 +57,17 @@ class PluginCatalogTests(unittest.TestCase):
         self.assertEqual(manifest["version"], "1.1.0")
         self.assertEqual(manifest["skills"], ["./skills/tikhub-xhs-setup"])
         self.assertTrue((PLUGIN_ROOT / "skills" / "tikhub-xhs-setup" / "SKILL.md").is_file())
+
+    def test_setup_skill_requires_safe_cross_platform_onboarding(self):
+        setup_skill = (
+            PLUGIN_ROOT / "skills" / "tikhub-xhs-setup" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("xhs_status", setup_skill)
+        self.assertIn("user explicitly agrees", setup_skill)
+        self.assertIn("fully restart Codex", setup_skill)
+        self.assertIn("create a new task", setup_skill)
+        self.assertIn("Do not ask the user to paste `TIKHUB_API_KEY`", setup_skill)
+        self.assertNotIn("ExecutionPolicy", setup_skill)
+        self.assertNotIn("ByPass", setup_skill)
+        self.assertNotIn("TIKHUB_API_KEY=", setup_skill)
