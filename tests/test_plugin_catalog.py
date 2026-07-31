@@ -71,3 +71,22 @@ class PluginCatalogTests(unittest.TestCase):
         self.assertNotIn("ExecutionPolicy", setup_skill)
         self.assertNotIn("ByPass", setup_skill)
         self.assertNotIn("TIKHUB_API_KEY=", setup_skill)
+
+    def test_platform_setup_scripts_are_safe_and_auditable(self):
+        windows = (PLUGIN_ROOT / "scripts" / "setup-windows.ps1").read_text(
+            encoding="utf-8"
+        )
+        macos = (PLUGIN_ROOT / "scripts" / "setup-macos.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("winget install --id astral-sh.uv -e", windows)
+        self.assertIn("uv --version", windows)
+        self.assertIn("brew install uv", macos)
+        self.assertIn("https://astral.sh/uv/install.sh", macos)
+        self.assertIn("uv --version", macos)
+        for text in (windows, macos):
+            self.assertNotIn("TIKHUB_API_KEY", text)
+            self.assertNotIn("setx", text.lower())
+            self.assertNotIn("export tikhub_api_key", text.lower())
+            self.assertNotIn("tikhub.io", text.lower())
