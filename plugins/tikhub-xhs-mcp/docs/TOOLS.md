@@ -23,7 +23,7 @@ All data tools are read-only. They require your own `TIKHUB_API_KEY` and may inc
 }
 ```
 
-`endpoint` is never a URL: use an exact `resource.method` value from the allowlist below. Parameter names and values follow the TikHub documentation for the selected endpoint.
+`endpoint` is never a URL: use an exact `resource.method` value from the allowlist below. Parameter names and values follow the TikHub documentation for the selected endpoint. For an unfamiliar endpoint, open [TikHub Docs](https://docs.tikhub.io) and search for the complete `resource.method` name, then use the matching Xiaohongshu API entry as the parameter reference.
 
 ## Complete endpoint allowlist (79)
 

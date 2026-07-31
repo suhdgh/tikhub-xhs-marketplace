@@ -102,6 +102,40 @@ class XhsMcpServiceBehaviorTests(unittest.TestCase):
 
         self.assertEqual(self.clients, [])
 
+    def test_generic_call_rejects_reserved_transport_and_credential_params_before_client_creation(self):
+        for reserved_name in ("headers", "authorization", "api_key", "tikhub_api_key"):
+            with self.subTest(reserved_name=reserved_name):
+                with self.assertRaisesRegex(XhsMcpToolError, "保留参数|不允许"):
+                    self.service.xhs_call(
+                        "app_v2.search_notes",
+                        {reserved_name: "caller-controlled-value", "keyword": "coffee"},
+                    )
+
+        self.assertEqual(self.clients, [])
+
+    def test_generic_call_keeps_xsec_token_and_share_link_parameters_available(self):
+        self.service.xhs_call(
+            "app.extract_share_info",
+            {
+                "share_link": "https://www.xiaohongshu.com/explore/example",
+                "xsec_token": "public-share-token",
+            },
+        )
+
+        self.assertEqual(
+            self.clients[0].calls,
+            [
+                (
+                    "app",
+                    "extract_share_info",
+                    {
+                        "share_link": "https://www.xiaohongshu.com/explore/example",
+                        "xsec_token": "public-share-token",
+                    },
+                )
+            ],
+        )
+
     def test_api_errors_provide_user_owned_key_and_actionable_status_guidance(self):
         expectations = {
             401: "自己的 TikHub API Key",
@@ -115,8 +149,9 @@ class XhsMcpServiceBehaviorTests(unittest.TestCase):
                     return FakeClient(error=TikHubAPIError("request failed", status_code=status_code))
 
                 service = XhsMcpService("test-key", client_factory=client_factory)
-                with self.assertRaisesRegex(XhsMcpToolError, expected_hint):
+                with self.assertRaisesRegex(XhsMcpToolError, expected_hint) as context:
                     service.xhs_get_hot_list()
+                self.assertIn("web_v3.fetch_hot_list", str(context.exception))
 
     def test_402_error_redacts_caller_and_response_secrets(self):
         def client_factory(api_key):

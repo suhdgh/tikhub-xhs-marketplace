@@ -12,6 +12,7 @@ from xiaohongshu_tikhub import ENDPOINTS, TikHubAPIError, TikHubXiaohongshuClien
 
 
 DEFAULT_VERSION = "1.0.0"
+RESERVED_PARAM_NAMES = frozenset({"headers", "authorization", "api_key", "tikhub_api_key"})
 
 
 class XhsMcpToolError(RuntimeError):
@@ -97,7 +98,7 @@ class XhsMcpService:
                 result = method(**call_params)
         except TikHubAPIError as error:
             self._write_request_log(endpoint, "error", status_code=error.status_code)
-            raise XhsMcpToolError(self._format_api_error(error)) from error
+            raise XhsMcpToolError(self._format_api_error(error, endpoint)) from error
         except Exception as error:
             self._write_request_log(endpoint, "error")
             safe_message = redact_sensitive_text(str(error), api_key=self._api_key)
@@ -198,7 +199,15 @@ class XhsMcpService:
             return {}
         if not isinstance(params, Mapping):
             raise ValueError("params 必须是 JSON 对象")
-        return dict(params)
+        normalized = dict(params)
+        if any(
+            isinstance(name, str) and name.casefold() in RESERVED_PARAM_NAMES
+            for name in normalized
+        ):
+            raise XhsMcpToolError(
+                "params 不允许包含保留参数：headers、authorization、api_key、tikhub_api_key"
+            )
+        return normalized
 
     @staticmethod
     def _parse_endpoint_name(endpoint: str) -> tuple[str, str]:
@@ -209,7 +218,7 @@ class XhsMcpService:
             raise XhsMcpToolError(f"未登记的小红书接口：{endpoint}")
         return resource_name, method_name
 
-    def _format_api_error(self, error: TikHubAPIError) -> str:
+    def _format_api_error(self, error: TikHubAPIError, endpoint: str) -> str:
         status_hints = {
             401: "鉴权失败：请检查您自己的 TikHub API Key 是否正确或已失效。",
             402: "余额不足或该接口需要付费：请在 TikHub 后台充值或确认接口套餐。",
@@ -219,7 +228,7 @@ class XhsMcpService:
         hint = status_hints.get(error.status_code, "请检查网络、接口参数或 TikHub 服务状态后重试。")
         safe_message = redact_sensitive_text(str(error), api_key=self._api_key)
         status = f"HTTP {error.status_code}" if error.status_code else "网络或响应错误"
-        return f"TikHub 调用失败（{status}）：{hint} 原始信息：{safe_message}"
+        return f"TikHub 接口 {endpoint} 调用失败（{status}）：{hint} 原始信息：{safe_message}"
 
     def _write_request_log(
         self,
