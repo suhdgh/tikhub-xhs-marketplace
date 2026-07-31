@@ -55,7 +55,7 @@ class PluginCatalogTests(unittest.TestCase):
         self.assertEqual(server["cwd"], ".")
         self.assertEqual(server["env_vars"], ["TIKHUB_API_KEY"])
         self.assertEqual(manifest["version"], "1.1.0")
-        self.assertEqual(manifest["skills"], ["./skills/tikhub-xhs-setup"])
+        self.assertEqual(manifest["skills"], "./skills/")
         self.assertTrue((PLUGIN_ROOT / "skills" / "tikhub-xhs-setup" / "SKILL.md").is_file())
 
     def test_setup_skill_requires_safe_cross_platform_onboarding(self):

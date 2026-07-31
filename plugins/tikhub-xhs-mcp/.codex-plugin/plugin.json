@@ -8,7 +8,7 @@
   "license": "MIT",
   "keywords": ["tikhub", "xiaohongshu", "xhs", "mcp", "data"],
   "mcpServers": "./.mcp.json",
-  "skills": ["./skills/tikhub-xhs-setup"],
+  "skills": "./skills/",
   "interface": {
     "displayName": "TikHub 小红书数据",
     "shortDescription": "查询小红书笔记、用户、评论与热榜数据",
