@@ -3,6 +3,16 @@ $ErrorActionPreference = 'Stop'
 
 Write-Host ([string]::Concat([char]0x65E0, [char]0x9700, [char]0x7C98, [char]0x8D34, ' TikHub Key'))
 
+if (Get-Command uv -ErrorAction SilentlyContinue) {
+    uv --version
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "uv verification failed with exit code $LASTEXITCODE."
+    }
+
+    exit $LASTEXITCODE
+}
+
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Error 'WinGet is unavailable. Install uv from https://docs.astral.sh/uv/getting-started/installation/ and try again.'
     exit 1
