@@ -82,6 +82,16 @@ class PluginCatalogTests(unittest.TestCase):
 
         self.assertIn("winget install --id astral-sh.uv -e", windows)
         self.assertIn("uv --version", windows)
+        self.assertIn("if ($LASTEXITCODE -ne 0)", windows)
+        self.assertIn('throw "WinGet installation failed', windows)
+        self.assertNotIn("exit 0", windows)
+        uv_missing_branch = windows.split(
+            "if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {", maxsplit=1
+        )[1]
+        self.assertTrue(
+            "throw" in uv_missing_branch or "exit 1" in uv_missing_branch,
+            "uv unavailable after installation must return a failure status",
+        )
         self.assertIn("brew install uv", macos)
         self.assertIn("https://astral.sh/uv/install.sh", macos)
         self.assertIn("uv --version", macos)

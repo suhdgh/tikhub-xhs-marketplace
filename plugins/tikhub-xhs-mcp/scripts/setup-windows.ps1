@@ -10,9 +10,19 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 
 winget install --id astral-sh.uv -e --accept-package-agreements --accept-source-agreements
 
+if ($LASTEXITCODE -ne 0) {
+    throw "WinGet installation failed with exit code $LASTEXITCODE."
+}
+
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Write-Host 'uv is installed. Close and reopen the terminal, then run this script again.'
-    exit 0
+    Write-Host 'uv may be installed. Close and reopen the terminal, then run this script again.'
+    throw 'uv is unavailable in the current terminal session.'
 }
 
 uv --version
+
+if ($LASTEXITCODE -ne 0) {
+    throw "uv verification failed with exit code $LASTEXITCODE."
+}
+
+exit $LASTEXITCODE
