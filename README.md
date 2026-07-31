@@ -9,6 +9,6 @@ This repository is an independent GitHub marketplace for a read-only TikHub Xiao
 3. Select and install the `tikhub-xhs-mcp` plugin.
 4. Follow the plugin documentation to configure your own `TIKHUB_API_KEY`, then restart Codex.
 
-The plugin only makes read-only calls to TikHub's Xiaohongshu endpoints. TikHub API calls may incur charges under your TikHub account, so review TikHub's current documentation and plan before making calls.
+The plugin only makes read-only calls to TikHub's Xiaohongshu endpoints. TikHub API calls may incur charges under your TikHub account, so review TikHub's current documentation and plan before making calls. You must comply with the current [TikHub User Terms](https://docs.tikhub.io/5508541m0) and the applicable Xiaohongshu platform terms when using this plugin.
 
 See [the plugin README](plugins/tikhub-xhs-mcp/README.md) for setup and usage.
