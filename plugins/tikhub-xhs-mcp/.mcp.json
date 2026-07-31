@@ -3,7 +3,8 @@
     "tikhub_xhs": {
       "command": "python",
       "args": ["xhs_mcp_server.py"],
-      "cwd": "."
+      "cwd": ".",
+      "env_vars": ["TIKHUB_API_KEY"]
     }
   }
 }

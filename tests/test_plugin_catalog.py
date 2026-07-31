@@ -29,3 +29,13 @@ class PluginCatalogTests(unittest.TestCase):
         )
         self.assertEqual(manifest["name"], "tikhub-xhs-mcp")
         self.assertEqual(manifest["mcpServers"], "./.mcp.json")
+
+    def test_mcp_server_forwards_only_tikhub_api_key(self):
+        mcp_config = json.loads((PLUGIN_ROOT / ".mcp.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+
+        server = mcp_config["mcpServers"]["tikhub_xhs"]
+        self.assertEqual(server["env_vars"], ["TIKHUB_API_KEY"])
+        self.assertEqual(manifest["version"], "1.0.1")
