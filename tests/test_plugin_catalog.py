@@ -100,3 +100,17 @@ class PluginCatalogTests(unittest.TestCase):
             self.assertNotIn("setx", text.lower())
             self.assertNotIn("export tikhub_api_key", text.lower())
             self.assertNotIn("tikhub.io", text.lower())
+
+    def test_documentation_points_to_uv_and_platform_setup_scripts(self):
+        readme = (PLUGIN_ROOT / "README.md").read_text(encoding="utf-8")
+        configure = (PLUGIN_ROOT / "docs" / "CONFIGURE_CODEX.md").read_text(
+            encoding="utf-8"
+        )
+        errors = (PLUGIN_ROOT / "docs" / "ERRORS.md").read_text(encoding="utf-8")
+
+        for text in (readme, configure, errors):
+            self.assertIn("uv", text)
+        self.assertIn("scripts/setup-windows.ps1", readme)
+        self.assertIn("scripts/setup-macos.sh", readme)
+        self.assertIn("TIKHUB_API_KEY", configure)
+        self.assertNotIn("python -m pip install -r requirements.txt", configure)

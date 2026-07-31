@@ -1,11 +1,12 @@
 # Configure Codex
 
-The plugin starts the command `python xhs_mcp_server.py` with the plugin root as its current working directory. Therefore, `python` must resolve to the Python interpreter where `mcp==2.0.0` was installed.
+The plugin starts with `uv run --python 3.12 --with mcp==2.0.0 xhs_mcp_server.py` from the plugin root. `uv run` selects or downloads Python 3.12 when needed and installs the pinned MCP dependency for the launch, so a separate Python environment and `pip` setup are not required.
 
-1. Set your own `TIKHUB_API_KEY` in the environment used to launch Codex. Do not put the key in a project file or share it.
-2. From the plugin root, install dependencies with `python -m pip install -r requirements.txt`.
-3. Confirm that `python -m pip show mcp` reports version `2.0.0` for that same interpreter.
-4. Restart Codex after setting `TIKHUB_API_KEY`, because an already-running Codex process does not receive newly set environment variables.
-5. Start a new task and call `xhs_status`. It should report `ready` and never display your key.
+1. Set your own `TIKHUB_API_KEY` only in the operating-system environment that starts Codex. Do not put the key in a project file, chat, screenshot, log, or source control. Examples must use a non-secret placeholder such as `your-key`.
+2. Install `uv`. Review the platform script first: `scripts/setup-windows.ps1` on Windows or `scripts/setup-macos.sh` on macOS/Linux. An AI may execute a script only after your explicit agreement.
+3. The first `uv run` needs network access to download Python 3.12 and `mcp==2.0.0` when they are not already cached. Let that first startup finish before treating it as an MCP failure.
+4. If `uv` is not on PATH, fully close Codex and the current terminal, open a new terminal, and run `uv --version`. If it is still unavailable, install `uv` with the reviewed platform script or the official uv installation instructions, then repeat the restart and version check.
+5. Fully quit Codex after installing `uv` or changing `TIKHUB_API_KEY`; reopening only a task is not enough for a running Codex process to receive the change.
+6. Start Codex again, create a new task, and call `xhs_status`. It reports `ready` when configuration is available and `configuration_required` when no usable key was present. It never makes a TikHub API request or displays the key.
 
-If `xhs_status` reports `configuration_required`, close Codex fully, verify the variable in the launching environment, then restart Codex. Do not make a paid TikHub request merely to test configuration.
+If `xhs_status` reports `configuration_required`, follow the dedicated [error recovery](ERRORS.md#errors-and-recovery) path. Do not make a paid TikHub request merely to test configuration.
