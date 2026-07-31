@@ -38,4 +38,22 @@ class PluginCatalogTests(unittest.TestCase):
 
         server = mcp_config["mcpServers"]["tikhub_xhs"]
         self.assertEqual(server["env_vars"], ["TIKHUB_API_KEY"])
-        self.assertEqual(manifest["version"], "1.0.1")
+        self.assertEqual(manifest["version"], "1.1.0")
+
+    def test_uv_runtime_and_setup_skill_are_packaged(self):
+        mcp_config = json.loads((PLUGIN_ROOT / ".mcp.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+
+        server = mcp_config["mcpServers"]["tikhub_xhs"]
+        self.assertEqual(server["command"], "uv")
+        self.assertEqual(
+            server["args"],
+            ["run", "--python", "3.12", "--with", "mcp==2.0.0", "xhs_mcp_server.py"],
+        )
+        self.assertEqual(server["cwd"], ".")
+        self.assertEqual(server["env_vars"], ["TIKHUB_API_KEY"])
+        self.assertEqual(manifest["version"], "1.1.0")
+        self.assertEqual(manifest["skills"], ["./skills/tikhub-xhs-setup"])
+        self.assertTrue((PLUGIN_ROOT / "skills" / "tikhub-xhs-setup" / "SKILL.md").is_file())

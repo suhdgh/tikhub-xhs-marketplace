@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "tikhub_xhs": {
-      "command": "python",
-      "args": ["xhs_mcp_server.py"],
+      "command": "uv",
+      "args": ["run", "--python", "3.12", "--with", "mcp==2.0.0", "xhs_mcp_server.py"],
       "cwd": ".",
       "env_vars": ["TIKHUB_API_KEY"]
     }
