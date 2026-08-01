@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -11,8 +13,9 @@ from typing import Any, Callable, Mapping
 from xiaohongshu_tikhub import ENDPOINTS, TikHubAPIError, TikHubXiaohongshuClient
 
 
-DEFAULT_VERSION = "1.0.0"
+DEFAULT_VERSION = "1.2.0"
 RESERVED_PARAM_NAMES = frozenset({"headers", "authorization", "api_key", "tikhub_api_key"})
+DEFAULT_CACHE_TTL_SECONDS = 300.0
 
 
 class XhsMcpToolError(RuntimeError):
@@ -43,11 +46,21 @@ class XhsMcpService:
         client_factory: Callable[..., TikHubXiaohongshuClient] = TikHubXiaohongshuClient,
         version: str = DEFAULT_VERSION,
         request_log_path: Path | None = None,
+        cache_ttl_seconds: float = DEFAULT_CACHE_TTL_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        if not isinstance(cache_ttl_seconds, (int, float)) or cache_ttl_seconds <= 0:
+            raise ValueError("cache_ttl_seconds must be greater than zero")
         self._api_key = api_key.strip() if isinstance(api_key, str) and api_key.strip() else None
         self._client_factory = client_factory
         self._version = version
         self._request_log_path = Path(request_log_path) if request_log_path else None
+        self._cache_ttl_seconds = float(cache_ttl_seconds)
+        self._clock = clock
+        self._cache: dict[str, tuple[float, Any]] = {}
+        self._cache_lock = threading.RLock()
+        self._inflight: dict[str, threading.Event] = {}
+        self._client: TikHubXiaohongshuClient | None = None
 
     def xhs_status(self) -> dict[str, Any]:
         """返回本地 MCP 状态；不会调用 TikHub。"""
@@ -86,25 +99,134 @@ class XhsMcpService:
             "endpoints": endpoints,
         }
 
-    def xhs_call(self, endpoint: str, params: Mapping[str, Any] | None = None) -> Any:
+    def xhs_call(
+        self,
+        endpoint: str,
+        params: Mapping[str, Any] | None = None,
+        *,
+        refresh: bool = False,
+    ) -> Any:
         """调用白名单中的一个接口，``endpoint`` 使用 ``资源.方法`` 形式。"""
         resource_name, method_name = self._parse_endpoint_name(endpoint)
         call_params = self._normalize_params(params)
-        api_key = self._require_api_key()
+        cache_key = self._build_cache_key(endpoint, call_params)
+        result, cache_hit = self._get_cached_result(cache_key, refresh=refresh)
+        if cache_hit:
+            self._write_request_log(endpoint, "cache_hit")
+            return result
+
+        fetch_owner = self._claim_fetch(cache_key, refresh=refresh)
+        if not fetch_owner:
+            result, cache_hit = self._wait_for_cached_result(cache_key)
+            if cache_hit:
+                self._write_request_log(endpoint, "cache_hit")
+                return result
+            return self.xhs_call(endpoint, call_params, refresh=refresh)
+
         try:
-            with self._client_factory(api_key) as client:
-                resource = getattr(client, resource_name)
-                method = getattr(resource, method_name)
-                result = method(**call_params)
+            api_key = self._require_api_key()
+            client = self._get_client(api_key)
+            resource = getattr(client, resource_name)
+            method = getattr(resource, method_name)
+            result = method(**call_params)
         except TikHubAPIError as error:
             self._write_request_log(endpoint, "error", status_code=error.status_code)
             raise XhsMcpToolError(self._format_api_error(error, endpoint)) from error
+        except XhsMcpToolError:
+            raise
         except Exception as error:
             self._write_request_log(endpoint, "error")
             safe_message = redact_sensitive_text(str(error), api_key=self._api_key)
             raise XhsMcpToolError(f"TikHub 调用发生本地错误：{safe_message}") from error
-        self._write_request_log(endpoint, "success")
+        else:
+            self._store_cached_result(cache_key, result)
+            self._write_request_log(endpoint, "success")
+        finally:
+            self._release_fetch(cache_key)
         return result
+
+    def close(self) -> None:
+        """Close the reusable client and discard process-local cached responses."""
+        with self._cache_lock:
+            client = self._client
+            self._client = None
+            self._cache.clear()
+        if client is not None:
+            close = getattr(client, "close", None)
+            if callable(close):
+                close()
+
+    def _get_client(self, api_key: str) -> TikHubXiaohongshuClient:
+        with self._cache_lock:
+            if self._client is None:
+                self._client = self._client_factory(api_key)
+            return self._client
+
+    def _get_cached_result(self, cache_key: str, *, refresh: bool) -> tuple[Any, bool]:
+        if refresh:
+            return None, False
+        now = self._clock()
+        with self._cache_lock:
+            entry = self._cache.get(cache_key)
+            if entry is None:
+                return None, False
+            expires_at, result = entry
+            if expires_at <= now:
+                self._cache.pop(cache_key, None)
+                return None, False
+            return result, True
+
+    def _wait_for_cached_result(self, cache_key: str) -> tuple[Any, bool]:
+        with self._cache_lock:
+            event = self._inflight.get(cache_key)
+        if event is not None:
+            event.wait()
+        return self._get_cached_result(cache_key, refresh=False)
+
+    def _claim_fetch(self, cache_key: str, *, refresh: bool) -> bool:
+        with self._cache_lock:
+            if not refresh:
+                entry = self._cache.get(cache_key)
+                if entry is not None and entry[0] > self._clock():
+                    return False
+            if cache_key in self._inflight:
+                return False
+            self._inflight[cache_key] = threading.Event()
+            return True
+
+    def _release_fetch(self, cache_key: str) -> None:
+        with self._cache_lock:
+            event = self._inflight.pop(cache_key, None)
+        if event is not None:
+            event.set()
+
+    def _store_cached_result(self, cache_key: str, result: Any) -> None:
+        with self._cache_lock:
+            self._cache[cache_key] = (self._clock() + self._cache_ttl_seconds, result)
+
+    @classmethod
+    def _build_cache_key(cls, endpoint: str, params: Mapping[str, Any]) -> str:
+        return json.dumps(
+            {"endpoint": endpoint, "params": cls._canonicalize_for_cache(params)},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+    @classmethod
+    def _canonicalize_for_cache(cls, value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return {
+                str(name): cls._canonicalize_for_cache(item)
+                for name, item in sorted(value.items(), key=lambda item: str(item[0]))
+            }
+        if isinstance(value, (list, tuple)):
+            return [cls._canonicalize_for_cache(item) for item in value]
+        if isinstance(value, set):
+            return sorted(cls._canonicalize_for_cache(item) for item in value)
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        return str(value)
 
     def _require_api_key(self) -> str:
         if not self._api_key:
@@ -113,9 +235,13 @@ class XhsMcpService:
             )
         return self._api_key
 
-    def xhs_search_notes(self, keyword: str, *, page: int = 1) -> Any:
+    def xhs_search_notes(self, keyword: str, *, page: int = 1, refresh: bool = False) -> Any:
         """按关键词搜索小红书笔记。"""
-        return self.xhs_call("app_v2.search_notes", {"keyword": keyword, "page": page})
+        return self.xhs_call(
+            "app_v2.search_notes",
+            {"keyword": keyword, "page": page},
+            refresh=refresh,
+        )
 
     def xhs_get_note(
         self,
@@ -123,6 +249,7 @@ class XhsMcpService:
         xsec_token: str,
         *,
         xsec_source: str = "pc_search",
+        refresh: bool = False,
     ) -> Any:
         """查询一篇笔记的详情。"""
         return self.xhs_call(
@@ -132,6 +259,7 @@ class XhsMcpService:
                 "xsec_token": xsec_token,
                 "xsec_source": xsec_source,
             },
+            refresh=refresh,
         )
 
     def xhs_get_note_comments(
@@ -141,6 +269,7 @@ class XhsMcpService:
         *,
         cursor: str | None = None,
         xsec_source: str = "pc_search",
+        refresh: bool = False,
     ) -> Any:
         """查询一篇笔记的评论。"""
         return self.xhs_call(
@@ -151,6 +280,7 @@ class XhsMcpService:
                 "xsec_source": xsec_source,
                 "cursor": cursor,
             },
+            refresh=refresh,
         )
 
     def xhs_get_user(
@@ -159,6 +289,7 @@ class XhsMcpService:
         xsec_token: str,
         *,
         xsec_source: str = "pc_search",
+        refresh: bool = False,
     ) -> Any:
         """查询小红书用户资料。"""
         return self.xhs_call(
@@ -168,6 +299,7 @@ class XhsMcpService:
                 "xsec_token": xsec_token,
                 "xsec_source": xsec_source,
             },
+            refresh=refresh,
         )
 
     def xhs_get_user_notes(
@@ -177,6 +309,7 @@ class XhsMcpService:
         *,
         cursor: str | None = None,
         xsec_source: str = "pc_search",
+        refresh: bool = False,
     ) -> Any:
         """查询一个用户发布的笔记。"""
         return self.xhs_call(
@@ -187,11 +320,12 @@ class XhsMcpService:
                 "xsec_source": xsec_source,
                 "cursor": cursor,
             },
+            refresh=refresh,
         )
 
-    def xhs_get_hot_list(self) -> Any:
+    def xhs_get_hot_list(self, *, refresh: bool = False) -> Any:
         """查询小红书热榜。"""
-        return self.xhs_call("web_v3.fetch_hot_list")
+        return self.xhs_call("web_v3.fetch_hot_list", refresh=refresh)
 
     @staticmethod
     def _normalize_params(params: Mapping[str, Any] | None) -> dict[str, Any]:

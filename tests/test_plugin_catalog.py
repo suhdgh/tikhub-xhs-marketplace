@@ -123,9 +123,9 @@ $source = Get-Content -LiteralPath '{quoted_script}' -Raw
 
         server = mcp_config["mcpServers"]["tikhub_xhs"]
         self.assertEqual(server["env_vars"], ["TIKHUB_API_KEY"])
-        self.assertEqual(manifest["version"], "1.1.0")
+        self.assertEqual(manifest["version"], "1.2.0")
 
-    def test_uv_runtime_and_setup_skill_are_packaged(self):
+    def test_uv_runtime_is_locked_and_setup_skill_is_packaged(self):
         mcp_config = json.loads((PLUGIN_ROOT / ".mcp.json").read_text(encoding="utf-8"))
         manifest = json.loads(
             (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
@@ -135,13 +135,16 @@ $source = Get-Content -LiteralPath '{quoted_script}' -Raw
         self.assertEqual(server["command"], "uv")
         self.assertEqual(
             server["args"],
-            ["run", "--python", "3.12", "--with", "mcp==2.0.0", "xhs_mcp_server.py"],
+            ["run", "--locked", "--python", "3.12", "xhs_mcp_server.py"],
         )
         self.assertEqual(server["cwd"], ".")
         self.assertEqual(server["env_vars"], ["TIKHUB_API_KEY"])
-        self.assertEqual(manifest["version"], "1.1.0")
+        self.assertEqual(manifest["version"], "1.2.0")
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertTrue((PLUGIN_ROOT / "skills" / "tikhub-xhs-setup" / "SKILL.md").is_file())
+        self.assertTrue((PLUGIN_ROOT / "pyproject.toml").is_file())
+        self.assertTrue((PLUGIN_ROOT / "uv.lock").is_file())
+        self.assertNotIn("--with", server["args"])
 
     def test_setup_skill_requires_safe_cross_platform_onboarding(self):
         setup_skill = (

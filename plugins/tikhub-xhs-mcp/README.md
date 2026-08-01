@@ -24,7 +24,7 @@ export TIKHUB_API_KEY="your-key"
 
 ## Install uv and prepare the MCP runtime
 
-Install `uv`, then fully restart Codex. On the first plugin start, Codex automatically uses `uv` to prepare Python 3.12 and `mcp==2.0.0`; no separate `pip` installation is required.
+Install `uv`, then fully restart Codex. On the first plugin start, Codex automatically uses `uv` to prepare Python 3.12 and the locked MCP runtime in a persistent project environment; no separate `pip` installation is required. Later starts reuse that environment and do not recreate a temporary `--with` dependency layer.
 
 Platform setup scripts are included for review:
 
@@ -38,3 +38,9 @@ An AI may run either script only after you explicitly agree. The scripts do not 
 After restarting Codex, call `xhs_status`. With no key it safely reports `configuration_required`; with your key configured it reports `ready`. `xhs_status` makes no TikHub API request.
 
 For tool arguments and the complete endpoint allowlist, see [Tools](docs/TOOLS.md). For problem resolution, see [Errors](docs/ERRORS.md).
+
+## Fast repeated queries
+
+Successful identical data requests are cached in memory for five minutes. The cache is page-aware: if you first fetch 50 search results and then need 300 results with the same keyword, sorting, and filters, already fetched pages are returned without another TikHub request. Only missing pages are requested.
+
+Ask to refresh or fetch fresh data when you need a real-time result. Codex then sends `refresh=true`, bypassing the cache and replacing it with the new successful response. Cache data is never written to disk and disappears when the MCP process stops.
