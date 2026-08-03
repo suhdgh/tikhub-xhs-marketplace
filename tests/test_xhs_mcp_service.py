@@ -200,3 +200,81 @@ class XhsMcpServiceBehaviorTests(unittest.TestCase):
         self.assertNotIn("bearer-secret", redacted)
         self.assertNotIn("named-secret", redacted)
         self.assertNotIn("token-secret", redacted)
+
+    def test_successful_identical_request_uses_a_ttl_cache(self):
+        clock = [100.0]
+        service = XhsMcpService(
+            "test-key",
+            client_factory=lambda api_key: FakeClient(response={"page": 1}),
+            cache_ttl_seconds=300,
+            clock=lambda: clock[0],
+        )
+
+        first = service.xhs_search_notes("bath tub", page=1)
+        clock[0] += 299
+        second = service.xhs_search_notes("bath tub", page=1)
+
+        self.assertEqual(first, {"page": 1})
+        self.assertEqual(second, {"page": 1})
+        self.assertEqual(len(service._client.calls), 1)
+
+    def test_expired_cache_entry_requests_tikhub_again(self):
+        clock = [100.0]
+        service = XhsMcpService(
+            "test-key",
+            client_factory=lambda api_key: FakeClient(response={"page": 1}),
+            cache_ttl_seconds=300,
+            clock=lambda: clock[0],
+        )
+
+        service.xhs_search_notes("bath tub", page=1)
+        clock[0] += 300
+        service.xhs_search_notes("bath tub", page=1)
+
+        self.assertEqual(len(service._client.calls), 2)
+
+    def test_page_cache_reuses_existing_pages_when_a_larger_result_set_is_requested(self):
+        service = XhsMcpService(
+            "test-key",
+            client_factory=lambda api_key: FakeClient(response={"ok": True}),
+        )
+
+        for page in range(1, 4):
+            service.xhs_search_notes("baby bath", page=page)
+        for page in range(1, 16):
+            service.xhs_search_notes("baby bath", page=page)
+
+        self.assertEqual(
+            [call[2]["page"] for call in service._client.calls],
+            list(range(1, 16)),
+        )
+
+    def test_refresh_bypasses_cached_value_without_forwarding_refresh_to_tikhub(self):
+        service = XhsMcpService(
+            "test-key",
+            client_factory=lambda api_key: FakeClient(response={"ok": True}),
+        )
+
+        service.xhs_call("app_v2.search_notes", {"keyword": "baby bath", "page": 1})
+        service.xhs_call(
+            "app_v2.search_notes",
+            {"keyword": "baby bath", "page": 1},
+            refresh=True,
+        )
+
+        self.assertEqual(len(service._client.calls), 2)
+        self.assertNotIn("refresh", service._client.calls[-1][2])
+
+    def test_errors_are_not_cached(self):
+        service = XhsMcpService(
+            "test-key",
+            client_factory=lambda api_key: FakeClient(
+                error=TikHubAPIError("request failed", status_code=402)
+            ),
+        )
+
+        for _ in range(2):
+            with self.assertRaises(XhsMcpToolError):
+                service.xhs_get_hot_list()
+
+        self.assertEqual(len(service._client.calls), 2)

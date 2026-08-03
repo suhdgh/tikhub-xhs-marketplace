@@ -4,14 +4,14 @@ All data tools are read-only. They require your own `TIKHUB_API_KEY` and may inc
 
 | Tool | Purpose |
 | --- | --- |
-| `xhs_search_notes` | Search notes by keyword and page. |
-| `xhs_get_note` | Get a note by `note_id` and `xsec_token`. |
-| `xhs_get_note_comments` | Get note comments, optionally continuing with `cursor`. |
-| `xhs_get_user` | Get a user by `user_id` and `xsec_token`. |
-| `xhs_get_user_notes` | Get a user's notes, optionally continuing with `cursor`. |
-| `xhs_get_hot_list` | Get the Xiaohongshu hot list. |
+| `xhs_search_notes` | Search notes by keyword and page; accepts `refresh`. |
+| `xhs_get_note` | Get a note by `note_id` and `xsec_token`; accepts `refresh`. |
+| `xhs_get_note_comments` | Get note comments, optionally continuing with `cursor`; accepts `refresh`. |
+| `xhs_get_user` | Get a user by `user_id` and `xsec_token`; accepts `refresh`. |
+| `xhs_get_user_notes` | Get a user's notes, optionally continuing with `cursor`; accepts `refresh`. |
+| `xhs_get_hot_list` | Get the Xiaohongshu hot list; accepts `refresh`. |
 | `xhs_list_endpoints` | List the local endpoint allowlist without a TikHub API request. |
-| `xhs_call` | Call one allowlisted endpoint using a `resource.method` name and parameter object. |
+| `xhs_call` | Call one allowlisted endpoint using a `resource.method` name and parameter object; accepts `refresh`. |
 | `xhs_status` | Report whether the key is configured without making a TikHub API request. |
 
 ## `xhs_call` example
@@ -22,6 +22,22 @@ All data tools are read-only. They require your own `TIKHUB_API_KEY` and may inc
   "params": {"keyword": "护肤", "page": 1}
 }
 ```
+
+## Cache and refresh
+
+Successful identical requests use a five-minute in-memory cache. Cache keys include the endpoint, page or cursor, and all result-affecting parameters. Fetching 300 results after fetching 50 with the same search conditions reuses every cached page and only requests the missing pages from TikHub.
+
+Use `refresh: true` only when the user explicitly asks for current data, for example:
+
+```json
+{
+  "endpoint": "app_v2.search_notes",
+  "params": {"keyword": "baby bath", "page": 1},
+  "refresh": true
+}
+```
+
+`refresh` is local MCP behavior and is never forwarded to TikHub. Failed requests are never cached.
 
 `endpoint` is never a URL: use an exact `resource.method` value from the allowlist below. Parameter names and values follow the TikHub documentation for the selected endpoint. For an unfamiliar endpoint, open [TikHub Docs](https://docs.tikhub.io) and search for the complete `resource.method` name, then use the matching Xiaohongshu API entry as the parameter reference.
 

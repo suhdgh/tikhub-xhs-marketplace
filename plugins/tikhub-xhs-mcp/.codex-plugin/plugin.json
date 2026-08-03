@@ -1,6 +1,6 @@
 {
   "name": "tikhub-xhs-mcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "通过 TikHub 查询小红书公开数据的只读 MCP 工具。",
   "author": {"name": "suhdgh", "url": "https://github.com/suhdgh"},
   "homepage": "https://github.com/suhdgh/tikhub-xhs-marketplace",

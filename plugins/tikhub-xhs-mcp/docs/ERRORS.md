@@ -5,8 +5,9 @@ This plugin does not expose API keys. Keep your own `TIKHUB_API_KEY` private, an
 | Symptom | Meaning and next action |
 | --- | --- |
 | `uv` is not found | Fully close Codex and the current terminal, open a new terminal, and run `uv --version`. If it is still unavailable, review and install `uv` with `scripts/setup-windows.ps1` on Windows or `scripts/setup-macos.sh` on macOS/Linux, then fully restart Codex. An AI may run a setup script only after your explicit agreement. |
-| First `uv run` download fails | The first start may need network access to download Python 3.12 and `mcp==2.0.0`. Check connectivity and retry the startup; if a network policy blocks the download, allow the required uv download or contact your network administrator. |
-| MCP server does not start | Confirm `uv --version` works in a new terminal, then fully restart Codex and create a new task. The server command is `uv run --python 3.12 --with mcp==2.0.0 xhs_mcp_server.py`; a first-run download must complete before the server can start. |
+| First `uv run` download fails | The first start may need network access to download Python 3.12 and the locked dependency set. Check connectivity and retry the startup; if a network policy blocks the download, allow the required uv download or contact your network administrator. |
+| MCP server does not start | Confirm `uv --version` works in a new terminal, then fully restart Codex and create a new task. The server command is `uv run --locked --python 3.12 xhs_mcp_server.py`; a first-run download must complete before the server can start. |
+| Repeated query still needs fresh data | Successful identical calls use a five-minute in-memory cache. Ask to refresh or call the tool with `refresh=true` to bypass the cache and request current TikHub data. |
 | `configuration_required` | No usable `TIKHUB_API_KEY` was present when Codex started. Set your own key only in the operating-system environment that launches Codex, fully quit and restart Codex, create a new task, then call `xhs_status` again. Do not paste the key into chat, files, screenshots, logs, or source control. |
 | HTTP 401 | Authentication failed. Verify that your own TikHub key is correct, active, and set in the environment used by Codex. |
 | HTTP 402 | Your TikHub balance or plan may not cover this endpoint. Check your TikHub balance and plan before retrying. |

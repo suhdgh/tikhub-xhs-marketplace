@@ -56,6 +56,30 @@ class XhsMcpServerTests(unittest.TestCase):
             },
         )
 
+    def test_all_tools_are_read_only_and_network_tools_expose_refresh(self):
+        server = create_server(api_key="test-key", version="1.2.0")
+
+        tools = asyncio.run(server.list_tools())
+        tool_by_name = {tool.name: tool for tool in tools}
+
+        for tool in tools:
+            self.assertTrue(tool.annotations.read_only_hint, tool.name)
+            self.assertFalse(tool.annotations.destructive_hint, tool.name)
+
+        for name in {
+            "xhs_search_notes",
+            "xhs_get_note",
+            "xhs_get_note_comments",
+            "xhs_get_user",
+            "xhs_get_user_notes",
+            "xhs_get_hot_list",
+            "xhs_call",
+        }:
+            self.assertIn("refresh", tool_by_name[name].input_schema["properties"], name)
+
+        self.assertNotIn("refresh", tool_by_name["xhs_status"].input_schema["properties"])
+        self.assertNotIn("refresh", tool_by_name["xhs_list_endpoints"].input_schema["properties"])
+
 
 if __name__ == "__main__":
     unittest.main()
